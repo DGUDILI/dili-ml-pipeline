@@ -146,7 +146,7 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import matthews_corrcoef
 from xgboost import XGBClassifier
 
@@ -156,31 +156,41 @@ from models.stackdili_fixed.ga.base import BaseGA
 class GAv4(BaseGA):
     """XGBoost 기반 피처 선택 (v4-Lite).
 
-    기존 GAv4의 강력한 정규화를 완화하여, 미세하게 유효한 피처들이 
+    기존 GAv4의 강력한 정규화를 완화하여, 미세하게 유효한 피처들이
     버려지지 않고 생존할 수 있도록 파라미터 탐색 공간을 조정했습니다.
     G0(전체)와 G4(강력한 가지치기) 사이의 황금 밸런스를 찾습니다.
+
+    RDKit 확장 피처셋(Feature_raw_rdkit.csv)을 전용으로 사용합니다.
     """
+
+    feature_raw_csv = "Feature_raw_rdkit.csv"
 
     def __init__(
         self,
         # 1. 정규화 강도를 기존보다 훨씬 부드럽게(낮게) 세팅
-        reg_alphas:   list = [0.01, 0.05, 0.1, 0.5], 
-        reg_lambdas:  list = [0.1, 0.5, 1.0, 5.0],
-        max_depth:    int  = 7,  # 2. 트리를 조금 더 깊게 파서 자잘한 피처도 발굴
-        cv_folds:     int  = 5,
-        n_estimators: int  = 300,
-        min_features: int  = 30, # 3. 최소 안전망 상향 (필요시 조정)
-        random_seed:  int  = 42,
-        n_jobs:       int  = -1,
+        reg_alphas:        list  = [0.01, 0.05, 0.1, 0.5],
+        reg_lambdas:       list  = [0.1, 0.5, 1.0, 5.0],
+        max_depth:         int   = 7,   # 2. 트리를 조금 더 깊게 파서 자잘한 피처도 발굴
+        subsample:         float = 0.8, # 3. 행 배깅 — overfitting 억제
+        colsample_bytree:  float = 0.8, # 4. 열 배깅 — 피처 수 증가 시 특히 유효
+        cv_folds:          int   = 5,
+        cv_repeats:        int   = 3,   # RepeatedStratifiedKFold 반복 횟수
+        n_estimators:      int   = 300,
+        min_features:      int   = 50,  # 5. 최소 안전망 상향
+        random_seed:       int   = 42,
+        n_jobs:            int   = -1,
     ):
-        self.reg_alphas   = reg_alphas
-        self.reg_lambdas  = reg_lambdas
-        self.max_depth    = max_depth
-        self.cv_folds     = cv_folds
-        self.n_estimators = n_estimators
-        self.min_features = min_features
-        self.random_seed  = random_seed
-        self.n_jobs       = n_jobs
+        self.reg_alphas        = reg_alphas
+        self.reg_lambdas       = reg_lambdas
+        self.max_depth         = max_depth
+        self.subsample         = subsample
+        self.colsample_bytree  = colsample_bytree
+        self.cv_folds          = cv_folds
+        self.cv_repeats        = cv_repeats
+        self.n_estimators      = n_estimators
+        self.min_features      = min_features
+        self.random_seed       = random_seed
+        self.n_jobs            = n_jobs
 
     # ------------------------------------------------------------------
     # 내부 메서드
@@ -189,7 +199,9 @@ class GAv4(BaseGA):
     def _make_xgb(self, reg_alpha, reg_lambda, scale_pos_weight):
         return XGBClassifier(
             n_estimators=self.n_estimators,
-            max_depth=self.max_depth, # 추가된 max_depth 적용
+            max_depth=self.max_depth,
+            subsample=self.subsample,
+            colsample_bytree=self.colsample_bytree,
             reg_alpha=reg_alpha,
             reg_lambda=reg_lambda,
             scale_pos_weight=scale_pos_weight,
@@ -201,9 +213,9 @@ class GAv4(BaseGA):
         )
 
     def _search_best_params(self, X_vals, y_vals, scale_pos_weight):
-        """(reg_alpha, reg_lambda) 후보 × CV → 최적 조합 반환."""
-        skf = StratifiedKFold(
-            n_splits=self.cv_folds, shuffle=True, random_state=self.random_seed
+        """(reg_alpha, reg_lambda) 후보 × RepeatedStratifiedKFold CV → 최적 조합 반환."""
+        skf = RepeatedStratifiedKFold(
+            n_splits=self.cv_folds, n_repeats=self.cv_repeats, random_state=self.random_seed
         )
 
         best_mcc    = -np.inf
@@ -249,7 +261,7 @@ class GAv4(BaseGA):
         n_combos = len(self.reg_alphas) * len(self.reg_lambdas)
         print(
             f"[XGB-Lite] 파라미터 탐색 중..."
-            f" ({n_combos}조합 × {self.cv_folds}-fold CV)"
+            f" ({n_combos}조합 × {self.cv_folds}-fold × {self.cv_repeats}반복 CV)"
         )
         (best_alpha, best_lambda), best_mcc = self._search_best_params(
             X_vals, y_vals, scale_pos_weight

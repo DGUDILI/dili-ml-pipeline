@@ -13,6 +13,9 @@ def _load_ga(version: str):
     if version == "g4":
         from models.stackdili_fixed.ga.ga_v4 import GAv4
         return GAv4
+    if version == "g4.5":
+        from models.stackdili_fixed.ga.ga_v4_5 import GAv4_5
+        return GAv4_5
     if version == "g5":
         from models.stackdili_fixed.ga.ga_v5 import GAv5
         return GAv5
@@ -38,10 +41,11 @@ def _load_stacking(version: str):
 
 # train.py의 choices= 에 사용하기 위한 키 목록 (import 없이 반환)
 GA_REGISTRY = {
-    "g0": None,
-    "g1": None,
-    "g4": None,
-    "g5": None,
+    "g0":   None,
+    "g1":   None,
+    "g4":   None,
+    "g4.5": None,
+    "g5":   None,
 }
 
 STACKING_REGISTRY = {
