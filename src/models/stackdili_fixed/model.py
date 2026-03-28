@@ -28,15 +28,30 @@ class Model:
         self.ga_version       = ga_version
 
     def _restore_features(self, features_path: str) -> None:
-        """Feature_raw.csv → Feature.csv 복원. raw 파일이 없으면 지금 Feature.csv를 백업한다."""
+        """Feature_raw*.csv → Feature.csv 복원.
+
+        GA가 feature_raw_csv를 지정한 경우 해당 파일을 사용합니다.
+        미지정 시 기본 Feature_raw.csv를 사용합니다.
+        """
         features_dir = os.path.dirname(features_path)
-        raw_path = os.path.join(features_dir, "Feature_raw.csv")
-        if os.path.exists(raw_path):
+        custom = getattr(self.ga, "feature_raw_csv", None)
+        if custom:
+            raw_path = os.path.join(features_dir, custom)
+            if not os.path.exists(raw_path):
+                raise FileNotFoundError(
+                    f"[오류] GA 전용 피처 파일이 없습니다: {raw_path}\n"
+                    f"  먼저 './run.sh add-features' 를 실행하세요."
+                )
             shutil.copy2(raw_path, features_path)
-            print("[원본 복원] Feature_raw.csv → Feature.csv")
-        elif os.path.exists(features_path):
-            shutil.copy2(features_path, raw_path)
-            print("[최초 백업] Feature.csv → Feature_raw.csv (이후 실행부터 자동 복원)")
+            print(f"[원본 복원] {custom} → Feature.csv")
+        else:
+            raw_path = os.path.join(features_dir, "Feature_raw.csv")
+            if os.path.exists(raw_path):
+                shutil.copy2(raw_path, features_path)
+                print("[원본 복원] Feature_raw.csv → Feature.csv")
+            elif os.path.exists(features_path):
+                shutil.copy2(features_path, raw_path)
+                print("[최초 백업] Feature.csv → Feature_raw.csv (이후 실행부터 자동 복원)")
 
     def _build_save_dir(self, clean: bool) -> str:
         dir_name = f"stacking_{self.stacking_version}"

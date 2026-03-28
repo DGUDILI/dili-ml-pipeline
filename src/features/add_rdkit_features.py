@@ -1,6 +1,7 @@
 """
 RDKit 기반 Feature 추가 스크립트
-Feature_raw.csv에 아래 두 종류의 feature를 추가하고 덮어씁니다.
+Feature_raw.csv를 기반으로 RDKit feature를 추가한 Feature_raw_rdkit.csv를 생성합니다.
+Feature_raw.csv는 변경하지 않으므로 G0 등 다른 GA와 독립적으로 사용 가능합니다.
 
   1. Morgan ECFP4 fingerprints  (radius=2, nBits=1024) → 컬럼명 Morgan_0 ~ Morgan_1023
   2. Physicochemical descriptors (9종)                → 컬럼명 RDKit_*
@@ -16,8 +17,9 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors
 from rdkit.Chem import rdFingerprintGenerator
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-RAW_PATH   = os.path.join(SCRIPT_DIR, "Feature_raw.csv")
+SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
+RAW_PATH    = os.path.join(SCRIPT_DIR, "Feature_raw.csv")
+OUTPUT_PATH = os.path.join(SCRIPT_DIR, "Feature_raw_rdkit.csv")
 
 
 # ──────────────────────────────────────────────
@@ -90,10 +92,10 @@ def main():
         [df.reset_index(drop=True), morgan_df, physchem_df],
         axis=1
     )
-    result_df.to_csv(RAW_PATH, index=False)
+    result_df.to_csv(OUTPUT_PATH, index=False)
 
     added = len(result_df.columns) - len(keep_cols)
-    print(f"[완료] Feature_raw.csv 업데이트 완료")
+    print(f"[완료] Feature_raw_rdkit.csv 생성 완료 (Feature_raw.csv는 변경 없음)")
     print(f"  기존 컬럼: {len(keep_cols)}  →  추가: {added}  →  최종: {len(result_df.columns)}")
     print(f"  (Morgan ECFP4 x1024  +  RDKit physchem x9 = {added})")
 
