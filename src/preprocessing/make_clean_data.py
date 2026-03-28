@@ -16,6 +16,7 @@ train_data = data[data['ref'] != 'DILIrank'].copy()
 test_data = data[data['ref'] == 'DILIrank'].copy()
 
 # 2. Canonical SMILES 변환 함수
+# : RDKit을 사용해 모든 SMILES를 유일한 표준 표기법(Canonical SMILES)으로 통일하는 함수(get_canonical)를 만들고 적용
 def get_canonical(smiles):
     try:
         mol = Chem.MolFromSmiles(smiles)
