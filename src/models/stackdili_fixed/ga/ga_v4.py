@@ -164,23 +164,27 @@ class GAv4(BaseGA):
     def __init__(
         self,
         # 1. 정규화 강도를 기존보다 훨씬 부드럽게(낮게) 세팅
-        reg_alphas:   list = [0.01, 0.05, 0.1, 0.5], 
-        reg_lambdas:  list = [0.1, 0.5, 1.0, 5.0],
-        max_depth:    int  = 7,  # 2. 트리를 조금 더 깊게 파서 자잘한 피처도 발굴
-        cv_folds:     int  = 5,
-        n_estimators: int  = 300,
-        min_features: int  = 30, # 3. 최소 안전망 상향 (필요시 조정)
-        random_seed:  int  = 42,
-        n_jobs:       int  = -1,
+        reg_alphas:        list  = [0.01, 0.05, 0.1, 0.5],
+        reg_lambdas:       list  = [0.1, 0.5, 1.0, 5.0],
+        max_depth:         int   = 7,   # 2. 트리를 조금 더 깊게 파서 자잘한 피처도 발굴
+        subsample:         float = 0.8, # 3. 행 배깅 — overfitting 억제
+        colsample_bytree:  float = 0.8, # 4. 열 배깅 — 피처 수 증가 시 특히 유효
+        cv_folds:          int   = 5,
+        n_estimators:      int   = 300,
+        min_features:      int   = 30,  # 5. 최소 안전망 상향 (필요시 조정)
+        random_seed:       int   = 42,
+        n_jobs:            int   = -1,
     ):
-        self.reg_alphas   = reg_alphas
-        self.reg_lambdas  = reg_lambdas
-        self.max_depth    = max_depth
-        self.cv_folds     = cv_folds
-        self.n_estimators = n_estimators
-        self.min_features = min_features
-        self.random_seed  = random_seed
-        self.n_jobs       = n_jobs
+        self.reg_alphas        = reg_alphas
+        self.reg_lambdas       = reg_lambdas
+        self.max_depth         = max_depth
+        self.subsample         = subsample
+        self.colsample_bytree  = colsample_bytree
+        self.cv_folds          = cv_folds
+        self.n_estimators      = n_estimators
+        self.min_features      = min_features
+        self.random_seed       = random_seed
+        self.n_jobs            = n_jobs
 
     # ------------------------------------------------------------------
     # 내부 메서드
@@ -189,7 +193,9 @@ class GAv4(BaseGA):
     def _make_xgb(self, reg_alpha, reg_lambda, scale_pos_weight):
         return XGBClassifier(
             n_estimators=self.n_estimators,
-            max_depth=self.max_depth, # 추가된 max_depth 적용
+            max_depth=self.max_depth,
+            subsample=self.subsample,
+            colsample_bytree=self.colsample_bytree,
             reg_alpha=reg_alpha,
             reg_lambda=reg_lambda,
             scale_pos_weight=scale_pos_weight,
