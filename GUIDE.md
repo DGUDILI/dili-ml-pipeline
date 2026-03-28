@@ -113,16 +113,17 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --cl
 | `s0` | `stacking/stacking_v0.py` | 원본 StackDILI — 직접 예측 기반, ExtraTrees 메타 모델 |
 | `s0.5` | `stacking/stacking_v0_5.py` | OOF 기반, LR/SVC(스케일) + ExtraTrees 메타 모델 |
 | `s1` | `stacking/stacking_v1.py` | OOF 기반, LogisticRegression 메타 모델 + 피처 힌트 + MCC 임계값 최적화 |
+| `s3` | `stacking/stacking_v3.py` | OOF 기반, LogisticRegressionCV 메타 모델 + LGBM 추가 + Train 기반 임계값 탐색 |
 
 **Stacking 버전 비교:**
 
-| | `s0` | `s0.5` | `s1` |
-|---|---|---|---|
-| 예측 방식 | 직접 예측 (데이터 누수) | OOF 5-fold | OOF 5-fold |
-| 베이스 모델 | RF, ET, HistGB, XGB | LR, SVC, RF, XGB, LGBM | RF, ET, HistGB, XGB |
-| 메타 모델 | ExtraTrees | ExtraTrees | LogisticRegression |
-| 피처 힌트 | 없음 | 없음 | TOP 5 피처 추가 |
-| 임계값 최적화 | 없음 | 없음 | 있음 (MCC 기준) |
+| | `s0` | `s0.5` | `s1` | `s3` |
+|---|---|---|---|---|
+| 예측 방식 | 직접 예측 (데이터 누수) | OOF 5-fold | OOF 5-fold | OOF 5-fold |
+| 베이스 모델 | RF, ET, HistGB, XGB | LR, SVC, RF, XGB, LGBM | RF, ET, HistGB, XGB | RF, ET, HistGB, XGB, LGBM |
+| 메타 모델 | ExtraTrees | ExtraTrees | LogisticRegression | LogisticRegressionCV |
+| 피처 힌트 | 없음 | 없음 | TOP 5 피처 추가 | TOP 5 피처 추가 |
+| 임계값 탐색 기준 | 없음 | 없음 | Test 기반 | Train 기반 (누수 방지) |
 
 ---
 

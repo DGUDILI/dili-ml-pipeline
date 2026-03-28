@@ -42,7 +42,7 @@ case "$CMD" in
     ;;
   *)
     echo "Usage: ./run.sh {build|shell|run [...options]|env-test}"
-    echo "  stacking: s0 | s0.5 | s1   (기본값: s1, 접두사 s)"
+    echo "  stacking: s0 | s0.5 | s1 | s3   (기본값: s1, 접두사 s)"
     echo "  ga:       g0 | g1 | g4 | g5 (생략 가능, 접두사 g)"
     echo "  clean:    'clean' 입력 시 Train-Test 중복 제거 실행"
     echo "  * 순서 무관"
