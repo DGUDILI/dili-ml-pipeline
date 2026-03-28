@@ -44,24 +44,27 @@ bash run.sh build
 ## 실행 방법
 
 ```bash
-./run.sh run [stacking_version] [ga_version] [clean]
+./run.sh run [s버전] [g버전] [clean]
 ```
 
 | 인자 | 설명 | 기본값 |
 |------|------|--------|
-| `stacking_version` | Stacking 버전 (`v0`, `v0.5`, `v1`) | `v1` |
-| `ga_version` | GA 버전 (`v0`, `v1`, `v4`). 생략하면 GA 없이 실행 | 생략 |
-| `clean` | `clean`을 입력하면 Train-Test 중복 제거 실행 | 생략 |
+| `s버전` | Stacking 버전. `s` 접두사 사용 (`s0`, `s0.5`, `s1`) | `s1` |
+| `g버전` | GA 버전. `g` 접두사 사용 (`g0`, `g1`, `g4`, `g5`). 생략하면 GA 없이 실행 | 생략 |
+| `clean` | Train-Test 중복 제거 실행 | 생략 |
+
+인자는 **순서 무관** — 접두사(`s`, `g`)로 구분합니다.
 
 ### 예시
 
 ```bash
-./run.sh run                      # Stacking v1, GA 없음, 정제 없음
-./run.sh run v1                   # Stacking v1, GA 없음, 정제 없음
-./run.sh run v1 v4                # Stacking v1 + GA v4, 정제 없음
-./run.sh run v1 v4 clean          # Stacking v1 + GA v4 + 데이터 정제
-./run.sh run v1 "" clean          # Stacking v1, GA 없음 + 데이터 정제
-./run.sh run v0.5 v1              # Stacking v0.5 + GA v1, 정제 없음
+./run.sh run                  # Stacking s1, GA 없음
+./run.sh run s1               # Stacking s1, GA 없음
+./run.sh run s1 g4            # Stacking s1 + GA g4
+./run.sh run g4 s1            # 순서 바꿔도 동일
+./run.sh run s1 g4 clean      # Stacking s1 + GA g4 + 데이터 정제
+./run.sh run clean s1         # Stacking s1 + 정제, GA 없음
+./run.sh run s0.5 g1          # Stacking s0.5 + GA g1
 ```
 
 > - GA를 생략하면 `Feature.csv`의 전체 피처로 바로 Stacking을 실행합니다.
@@ -74,11 +77,11 @@ bash run.sh build
 
 ```
 src/models/stackdili_fixed/Model/
-├── stacking_v1/                     # ./run.sh run v1
-├── stacking_v1_clean/               # ./run.sh run v1 "" clean
-├── stacking_v1_ga_v4/               # ./run.sh run v1 v4
-├── stacking_v1_ga_v4_clean/         # ./run.sh run v1 v4 clean
-└── stacking_v0.5_ga_v1_clean/       # ./run.sh run v0.5 v1 clean
+├── stacking_s1/                     # ./run.sh run s1
+├── stacking_s1_clean/               # ./run.sh run s1 clean
+├── stacking_s1_ga_g4/               # ./run.sh run s1 g4
+├── stacking_s1_ga_g4_clean/         # ./run.sh run s1 g4 clean
+└── stacking_s0.5_ga_g1_clean/       # ./run.sh run s0.5 g1 clean
 ```
 
 ### 컨테이너 쉘 접속 (직접 실험할 때)
@@ -98,22 +101,22 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --cl
 
 | 버전 | 파일 | 설명 |
 |------|------|------|
-| `v0` | `ga/ga_v0.py` | 원본 StackDILI GA — DEAP 기반, RF 5-fold CV 피트니스 |
-| `v1` | `ga/ga_v1.py` | MRMR + Boruta 앙상블 (분산 필터링 → MRMR → Boruta 교집합/합집합) |
-| `v4` | `ga/ga_v4.py` | XGBoost L1/L2 정규화 — CV로 최적 reg_alpha/reg_lambda 탐색, 중요도 > 0 피처 선택 |
-| `v5` | `ga/ga_v5.py` | 듀얼 패스 — Path A: VT+RF Top-128, Path B: SMILES→GCN→CrossAttention → 256-dim 임베딩 추가 |
+| `g0` | `ga/ga_v0.py` | 원본 StackDILI GA — DEAP 기반, RF 5-fold CV 피트니스 |
+| `g1` | `ga/ga_v1.py` | MRMR + Boruta 앙상블 (분산 필터링 → MRMR → Boruta 교집합/합집합) |
+| `g4` | `ga/ga_v4.py` | XGBoost L1/L2 정규화 — CV로 최적 reg_alpha/reg_lambda 탐색, 중요도 > 0 피처 선택 |
+| `g5` | `ga/ga_v5.py` | 듀얼 패스 — Path A: VT+RF Top-128, Path B: SMILES→GCN→CrossAttention → 256-dim 임베딩 추가 |
 
 ### Stacking
 
 | 버전 | 파일 | 설명 |
 |------|------|------|
-| `v0` | `stacking/stacking_v0.py` | 원본 StackDILI — 직접 예측 기반, ExtraTrees 메타 모델 |
-| `v0.5` | `stacking/stacking_v0_5.py` | OOF 기반, LR/SVC(스케일) + ExtraTrees 메타 모델 |
-| `v1` | `stacking/stacking_v1.py` | OOF 기반, LogisticRegression 메타 모델 + 피처 힌트 + MCC 임계값 최적화 |
+| `s0` | `stacking/stacking_v0.py` | 원본 StackDILI — 직접 예측 기반, ExtraTrees 메타 모델 |
+| `s0.5` | `stacking/stacking_v0_5.py` | OOF 기반, LR/SVC(스케일) + ExtraTrees 메타 모델 |
+| `s1` | `stacking/stacking_v1.py` | OOF 기반, LogisticRegression 메타 모델 + 피처 힌트 + MCC 임계값 최적화 |
 
 **Stacking 버전 비교:**
 
-| | `v0` | `v0.5` | `v1` |
+| | `s0` | `s0.5` | `s1` |
 |---|---|---|---|
 | 예측 방식 | 직접 예측 (데이터 누수) | OOF 5-fold | OOF 5-fold |
 | 베이스 모델 | RF, ET, HistGB, XGB | LR, SVC, RF, XGB, LGBM | RF, ET, HistGB, XGB |

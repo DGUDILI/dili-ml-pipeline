@@ -10,15 +10,18 @@ case "$CMD" in
     docker compose run --rm ml bash
     ;;
   run)
-    STACKING=${2:-v1}
-    GA=${3:-}
-    CLEAN=${4:-}
+    STACKING="s1"
+    GA=""
+    CLEAN=""
 
-    # 3번째 인자가 "clean"이면 GA 없이 clean으로 처리
-    if [ "$GA" = "clean" ]; then
-      CLEAN="clean"
-      GA=""
-    fi
+    # 접두사(s=stacking, g=ga)로 인자 구분 — 순서 무관
+    for arg in "${@:2}"; do
+      case "$arg" in
+        s*)  STACKING="$arg" ;;
+        g*)  GA="$arg" ;;
+        clean) CLEAN="clean" ;;
+      esac
+    done
 
     GA_ARG=""
     CLEAN_ARG=""
@@ -38,16 +41,18 @@ case "$CMD" in
       python src/env_test.py
     ;;
   *)
-    echo "Usage: ./run.sh {build|shell|run [stacking_version] [ga_version] [clean]|env-test}"
-    echo "  stacking: v0 | v0.5 | v1       (기본값: v1)"
-    echo "  ga:       v0 | v1 | v4 | v5   (생략 가능)"
+    echo "Usage: ./run.sh {build|shell|run [...options]|env-test}"
+    echo "  stacking: s0 | s0.5 | s1   (기본값: s1, 접두사 s)"
+    echo "  ga:       g0 | g1 | g4 | g5 (생략 가능, 접두사 g)"
     echo "  clean:    'clean' 입력 시 Train-Test 중복 제거 실행"
+    echo "  * 순서 무관"
     echo ""
-    echo "  예시: ./run.sh run                    # GA 없이 stacking v1"
-    echo "        ./run.sh run v1                 # GA 없이 stacking v1"
-    echo "        ./run.sh run v1 v4              # GA v4 + stacking v1"
-    echo "        ./run.sh run v1 v4 clean        # GA v4 + stacking v1 + 데이터 정제"
-    echo "        ./run.sh run v1 \"\" clean        # GA 없이 stacking v1 + 데이터 정제"
+    echo "  예시: ./run.sh run                  # Stacking s1, GA 없음"
+    echo "        ./run.sh run s1               # Stacking s1, GA 없음"
+    echo "        ./run.sh run s1 g4            # Stacking s1 + GA g4"
+    echo "        ./run.sh run g4 s1            # 순서 바꿔도 동일"
+    echo "        ./run.sh run s1 g4 clean      # Stacking s1 + GA g4 + 정제"
+    echo "        ./run.sh run clean s1         # Stacking s1 + 정제, GA 없음"
     exit 1
     ;;
 esac
