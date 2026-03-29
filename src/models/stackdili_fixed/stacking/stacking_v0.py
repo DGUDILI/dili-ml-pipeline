@@ -145,6 +145,7 @@ class StackingV0(BaseStacking):
         X_test: pd.DataFrame,
         y_test: np.ndarray,
         save_dir: str,
+        verbose: bool = True,
     ) -> dict:
         X_te = X_test.values
 
@@ -160,19 +161,30 @@ class StackingV0(BaseStacking):
         with open(os.path.join(save_dir, "best_model_stacking.pkl"), 'rb') as f:
             stacking_model = pickle.load(f)
 
-        print("\n[최종 성능 평가]")
-        print("=" * 100)
-        print(f"  {'Model':<22} {'ACC':<8} {'AUC':<8} {'MCC':<8} {'F1':<8} {'Prec':<8} {'Sens':<8} {'Spec':<8}")
-        print("-" * 100)
-
-        for name, y_prob in zip(base_model_names, prob_list):
-            self._print_metrics(name, y_test, (y_prob >= 0.5).astype(int), y_prob)
-
-        print("-" * 100)
         y_prob = stacking_model.predict_proba(X_meta_test)[:, 1]
-        auc = self._print_metrics(
-            "Stacking(ET)", y_test, stacking_model.predict(X_meta_test), y_prob,
-        )
-        print("=" * 100)
+        y_pred = stacking_model.predict(X_meta_test)
 
-        return {"auc": auc, "threshold": 0.5}
+        acc  = accuracy_score(y_test, y_pred)
+        auc  = roc_auc_score(y_test, y_prob)
+        mcc  = matthews_corrcoef(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        sens = recall_score(y_test, y_pred, zero_division=0)
+        f1   = f1_score(y_test, y_pred, zero_division=0)
+        tn, fp, *_ = confusion_matrix(y_test, y_pred).ravel()
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0
+
+        if verbose:
+            print("\n[최종 성능 평가]")
+            print("=" * 100)
+            print(f"  {'Model':<22} {'ACC':<8} {'AUC':<8} {'MCC':<8} {'F1':<8} {'Prec':<8} {'Sens':<8} {'Spec':<8}")
+            print("-" * 100)
+            for name, y_p in zip(base_model_names, prob_list):
+                self._print_metrics(name, y_test, (y_p >= 0.5).astype(int), y_p)
+            print("-" * 100)
+            self._print_metrics("Stacking(ET)", y_test, y_pred, y_prob)
+            print("=" * 100)
+
+        return {
+            "auc": auc, "threshold": 0.5,
+            "acc": acc, "mcc": mcc, "f1": f1, "prec": prec, "sens": sens, "spec": spec,
+        }

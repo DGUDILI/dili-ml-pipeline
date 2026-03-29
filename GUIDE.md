@@ -44,31 +44,38 @@ bash run.sh build
 ## 실행 방법
 
 ```bash
-./run.sh run [s버전] [g버전] [clean]
+./run.sh run [s버전] [g버전] [env버전] [clean]
 ```
 
 | 인자 | 설명 | 기본값 |
 |------|------|--------|
 | `s버전` | Stacking 버전. `s` 접두사 사용 (`s0`, `s0.5`, `s1`) | `s1` |
-| `g버전` | GA 버전. `g` 접두사 사용 (`g0`, `g1`, `g4`, `g5`). 생략하면 GA 없이 실행 | 생략 |
+| `g버전` | GA 버전. `g` 접두사 사용 (`g0`). 생략하면 GA 없이 실행 | 생략 |
+| `env버전` | 실험 환경. `env` 접두사 사용 (`env1`, `env2`). 생략 시 env1과 동일 | 생략 |
 | `clean` | Train-Test 중복 제거 실행 | 생략 |
 
-인자는 **순서 무관** — 접두사(`s`, `g`)로 구분합니다.
+인자는 **순서 무관** — 접두사(`s`, `g`, `env`)로 구분합니다.
+
+### 실험 환경 (env)
+
+| 환경 | 설명 |
+|------|------|
+| `env1` | **외부 검증** — NCTR, Greene, Xu, Liew로 학습 → DILIrank로 테스트 |
+| `env2` | **10-Fold CV** — 전체 5개 데이터셋 합산 후 10겹 교차 검증, 평균 AUC 출력 |
 
 ### 예시
 
 ```bash
-./run.sh run                  # Stacking s1, GA 없음
-./run.sh run s1               # Stacking s1, GA 없음
-./run.sh run s1 g4            # Stacking s1 + GA g4
-./run.sh run g4 s1            # 순서 바꿔도 동일
-./run.sh run s1 g4 clean      # Stacking s1 + GA g4 + 데이터 정제
-./run.sh run clean s1         # Stacking s1 + 정제, GA 없음
-./run.sh run s0.5 g1          # Stacking s0.5 + GA g1
+./run.sh run                        # Stacking s1, GA 없음 (env1)
+./run.sh run s1 env1                # Stacking s1, 외부 검증
+./run.sh run s1 env2                # Stacking s1, 10-Fold CV
+./run.sh run s1 g0 env1             # Stacking s1 + GA g0 + 외부 검증
+./run.sh run s1 g0 env2             # Stacking s1 + GA g0 + 10-Fold CV
+./run.sh run s1 g0 env2 clean       # + 데이터 정제
 ```
 
 > - GA를 생략하면 `Feature.csv`의 전체 피처로 바로 Stacking을 실행합니다.
-> - GA는 피처 수에 따라 수십 분 이상 걸릴 수 있습니다.
+> - `env2`는 10개 fold를 순차 실행하므로 env1보다 시간이 약 10배 걸립니다.
 > - 데이터 정제(`clean`)는 Train-Test 중복 제거가 필요한 경우에만 사용하세요.
 
 ### 결과 저장 위치
@@ -77,11 +84,15 @@ bash run.sh build
 
 ```
 src/models/stackdili_fixed/Model/
-├── stacking_s1/                     # ./run.sh run s1
-├── stacking_s1_clean/               # ./run.sh run s1 clean
-├── stacking_s1_ga_g4/               # ./run.sh run s1 g4
-├── stacking_s1_ga_g4_clean/         # ./run.sh run s1 g4 clean
-└── stacking_s0.5_ga_g1_clean/       # ./run.sh run s0.5 g1 clean
+├── stacking_s1/                          # ./run.sh run s1
+├── stacking_s1_ga_g0/                    # ./run.sh run s1 g0 env1
+├── stacking_s1_env2/                     # ./run.sh run s1 env2
+│   ├── fold_01/
+│   ├── fold_02/
+│   └── ...fold_10/
+└── stacking_s1_ga_g0_env2_clean/         # ./run.sh run s1 g0 env2 clean
+    ├── fold_01/
+    └── ...
 ```
 
 ### 컨테이너 쉘 접속 (직접 실험할 때)
@@ -90,7 +101,7 @@ src/models/stackdili_fixed/Model/
 ./run.sh shell
 
 # 컨테이너 안에서
-conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --clean
+conda run -n dili_ml_pipeline_env python src/train.py --stacking s1 --ga g0 --env env2
 ```
 
 ---
@@ -102,9 +113,6 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --cl
 | 버전 | 파일 | 설명 |
 |------|------|------|
 | `g0` | `ga/ga_v0.py` | 원본 StackDILI GA — DEAP 기반, RF 5-fold CV 피트니스 |
-| `g1` | `ga/ga_v1.py` | MRMR + Boruta 앙상블 (분산 필터링 → MRMR → Boruta 교집합/합집합) |
-| `g4` | `ga/ga_v4.py` | XGBoost L1/L2 정규화 — CV로 최적 reg_alpha/reg_lambda 탐색, 중요도 > 0 피처 선택 |
-| `g5` | `ga/ga_v5.py` | 듀얼 패스 — Path A: VT+RF Top-128, Path B: SMILES→GCN→CrossAttention → 256-dim 임베딩 추가 |
 
 ### Stacking
 
@@ -113,17 +121,14 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --cl
 | `s0` | `stacking/stacking_v0.py` | 원본 StackDILI — 직접 예측 기반, ExtraTrees 메타 모델 |
 | `s0.5` | `stacking/stacking_v0_5.py` | OOF 기반, LR/SVC(스케일) + ExtraTrees 메타 모델 |
 | `s1` | `stacking/stacking_v1.py` | OOF 기반, LogisticRegression 메타 모델 + 피처 힌트 + MCC 임계값 최적화 |
-| `s3` | `stacking/stacking_v3.py` | OOF 기반, LogisticRegressionCV 메타 모델 + LGBM 추가 + Train 기반 임계값 탐색 |
-
 **Stacking 버전 비교:**
 
-| | `s0` | `s0.5` | `s1` | `s3` |
-|---|---|---|---|---|
-| 예측 방식 | 직접 예측 (데이터 누수) | OOF 5-fold | OOF 5-fold | OOF 5-fold |
-| 베이스 모델 | RF, ET, HistGB, XGB | LR, SVC, RF, XGB, LGBM | RF, ET, HistGB, XGB | RF, ET, HistGB, XGB, LGBM |
-| 메타 모델 | ExtraTrees | ExtraTrees | LogisticRegression | LogisticRegressionCV |
-| 피처 힌트 | 없음 | 없음 | TOP 5 피처 추가 | TOP 5 피처 추가 |
-| 임계값 탐색 기준 | 없음 | 없음 | Test 기반 | Train 기반 (누수 방지) |
+| | `s0` | `s0.5` | `s1` |
+|---|---|---|---|
+| 예측 방식 | 직접 예측 (데이터 누수) | OOF 5-fold | OOF 5-fold |
+| 베이스 모델 | RF, ET, HistGB, XGB | LR, SVC, RF, XGB, LGBM | RF, ET, HistGB, XGB |
+| 메타 모델 | ExtraTrees | ExtraTrees | LogisticRegression |
+| 피처 힌트 | 없음 | 없음 | TOP 5 피처 추가 |
 
 ---
 
@@ -159,15 +164,15 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking v1 --ga v4 --cl
 
 ## 새 버전 추가하기
 
-### GA 새 버전 추가 (예: ga_v1.py)
+### GA 새 버전 추가 (예: ga_v2.py)
 
-**1. 파일 생성** `src/models/stackdili_fixed/ga/ga_v1.py`
+**1. 파일 생성** `src/models/stackdili_fixed/ga/ga_v2.py`
 
 ```python
 from models.stackdili_fixed.ga.base import BaseGA
 import pandas as pd
 
-class GAv1(BaseGA):
+class GAv2(BaseGA):
     def select_features(self, X: pd.DataFrame, y: pd.Series) -> list:
         # 새 피처 선택 로직 작성
         # 반드시 선택된 컬럼명 리스트를 반환해야 함
@@ -178,19 +183,21 @@ class GAv1(BaseGA):
 **2. registry.py에 등록** `src/registry.py`
 
 ```python
-from models.stackdili_fixed.ga.ga_v0 import GAv0
-from models.stackdili_fixed.ga.ga_v1 import GAv1  # 추가
-
 GA_REGISTRY = {
-    "v0": GAv0,
-    "v1": GAv1,  # 추가
+    "g0": None,
+    "g2": None,  # 추가
 }
+
+# _load_ga() 함수에도 분기 추가:
+if version == "g2":
+    from models.stackdili_fixed.ga.ga_v2 import GAv2
+    return GAv2
 ```
 
 **3. 실행**
 
 ```bash
-./run.sh run v1 v1
+./run.sh run s1 g2
 ```
 
 ---

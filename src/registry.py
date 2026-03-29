@@ -7,18 +7,6 @@ def _load_ga(version: str):
     if version == "g0":
         from models.stackdili_fixed.ga.ga_v0 import GAv0
         return GAv0
-    if version == "g1":
-        from models.stackdili_fixed.ga.ga_v1 import GAv1
-        return GAv1
-    if version == "g4":
-        from models.stackdili_fixed.ga.ga_v4 import GAv4
-        return GAv4
-    if version == "g4.5":
-        from models.stackdili_fixed.ga.ga_v4_5 import GAv4_5
-        return GAv4_5
-    if version == "g5":
-        from models.stackdili_fixed.ga.ga_v5 import GAv5
-        return GAv5
     raise KeyError(f"GA 버전 '{version}'이 존재하지 않습니다. 가능한 버전: {list(GA_REGISTRY)}")
 
 
@@ -33,30 +21,35 @@ def _load_stacking(version: str):
     if version == "s1":
         from models.stackdili_fixed.stacking.stacking_v1 import StackingV1
         return StackingV1
-    if version == "s3":
-        from models.stackdili_fixed.stacking.stacking_v3 import StackingV3
-        return StackingV3
     raise KeyError(f"Stacking 버전 '{version}'이 존재하지 않습니다. 가능한 버전: {list(STACKING_REGISTRY)}")
 
 
 # train.py의 choices= 에 사용하기 위한 키 목록 (import 없이 반환)
 GA_REGISTRY = {
-    "g0":   None,
-    "g1":   None,
-    "g4":   None,
-    "g4.5": None,
-    "g5":   None,
+    "g0": None,
+}
+
+ENV_REGISTRY = {
+    "env1": "외부 검증 — NCTR/Greene/Xu/Liew 학습, DILIrank 테스트",
+    "env2": "10-Fold CV — 전체 데이터셋 합쳐서 10겹 교차 검증",
 }
 
 STACKING_REGISTRY = {
     "s0":   None,
     "s0.5": None,
     "s1":   None,
-    "s3":   None,
 }
 
 
-def build_model(stacking_version: str, ga_version: Optional[str] = None) -> Model:
+def build_model(
+    stacking_version: str,
+    ga_version: Optional[str] = None,
+    env: Optional[str] = None,
+) -> Model:
     ga       = _load_ga(ga_version)() if ga_version else None
     stacking = _load_stacking(stacking_version)()
-    return Model(stacking=stacking, ga=ga, stacking_version=stacking_version, ga_version=ga_version)
+    return Model(
+        stacking=stacking, ga=ga,
+        stacking_version=stacking_version, ga_version=ga_version,
+        env=env,
+    )

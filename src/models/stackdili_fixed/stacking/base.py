@@ -22,6 +22,10 @@ class BaseStacking(ABC):
         X_test: pd.DataFrame,
         y_test: np.ndarray,
         save_dir: str,
+        verbose: bool = True,
     ) -> dict:
-        """저장된 모델 로드 후 평가. {"auc": float, "threshold": float} 반환."""
+        """저장된 모델 로드 후 평가.
+        {"auc", "threshold", "acc", "mcc", "f1", "prec", "sens", "spec"} 반환.
+        verbose=False 이면 출력 없이 메트릭만 반환.
+        """
         pass

@@ -128,6 +128,7 @@ class StackingV1(BaseStacking):
         X_test: pd.DataFrame,
         y_test: np.ndarray,
         save_dir: str,
+        verbose: bool = True,
     ) -> dict:
         models = self._base_models()
         X_te = X_test.values
@@ -147,22 +148,31 @@ class StackingV1(BaseStacking):
             meta_model = pickle.load(f)
 
         X_meta_test = np.hstack([np.column_stack(prob_list), scaler.transform(X_te_top)])
-
-        print("\n[최종 성능 평가]")
-        print("=" * 110)
-        print(f"  {'Model':<22} {'ACC':<8} {'AUC':<8} {'MCC':<8} {'F1':<8} {'Prec':<8} {'Sens':<8} {'Spec':<8}")
-        print("-" * 110)
-
-        for name, y_prob in zip(models, prob_list):
-            self._print_metrics(name, y_test, (y_prob >= 0.5).astype(int), y_prob)
-
-        print("-" * 110)
         y_prob = meta_model.predict_proba(X_meta_test)[:, 1]
-        
-        # 임계값 0.5 고정 평가로 변경된 부분
-        auc = self._print_metrics("Stacking (Th=0.50)", y_test, (y_prob >= 0.5).astype(int), y_prob)
-        
-        print("=" * 110)
-        print(f"최종 AUC:    {auc:.4f}")
+        y_pred = (y_prob >= 0.5).astype(int)
 
-        return {"auc": auc, "threshold": 0.5}
+        acc  = accuracy_score(y_test, y_pred)
+        auc  = roc_auc_score(y_test, y_prob)
+        mcc  = matthews_corrcoef(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        sens = recall_score(y_test, y_pred, zero_division=0)
+        f1   = f1_score(y_test, y_pred, zero_division=0)
+        tn, fp, *_ = confusion_matrix(y_test, y_pred).ravel()
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0
+
+        if verbose:
+            print("\n[최종 성능 평가]")
+            print("=" * 110)
+            print(f"  {'Model':<22} {'ACC':<8} {'AUC':<8} {'MCC':<8} {'F1':<8} {'Prec':<8} {'Sens':<8} {'Spec':<8}")
+            print("-" * 110)
+            for name, y_p in zip(models, prob_list):
+                self._print_metrics(name, y_test, (y_p >= 0.5).astype(int), y_p)
+            print("-" * 110)
+            self._print_metrics("Stacking (Th=0.50)", y_test, y_pred, y_prob)
+            print("=" * 110)
+            print(f"최종 AUC:    {auc:.4f}")
+
+        return {
+            "auc": auc, "threshold": 0.5,
+            "acc": acc, "mcc": mcc, "f1": f1, "prec": prec, "sens": sens, "spec": spec,
+        }

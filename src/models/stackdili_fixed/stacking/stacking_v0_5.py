@@ -11,7 +11,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
-    accuracy_score, roc_auc_score,
+    accuracy_score, roc_auc_score, matthews_corrcoef,
     precision_score, recall_score, f1_score, confusion_matrix,
 )
 from xgboost import XGBClassifier
@@ -125,6 +125,7 @@ class StackingV05(BaseStacking):
         X_test: pd.DataFrame,
         y_test: np.ndarray,
         save_dir: str,
+        verbose: bool = True,
     ) -> dict:
         oof_test = np.load(os.path.join(save_dir, "v05_oof_test.npy"))
 
@@ -134,9 +135,22 @@ class StackingV05(BaseStacking):
         y_prob = meta_model.predict_proba(oof_test)[:, 1]
         y_pred = (y_prob >= 0.5).astype(int)
 
-        print("\n[최종 성능 평가 - OOF Stacking v0.5]")
-        print("=" * 70)
-        auc = self._print_metrics("Stacking(ExtraTrees)", y_test, y_pred, y_prob)
-        print("=" * 70)
+        acc  = accuracy_score(y_test, y_pred)
+        auc  = roc_auc_score(y_test, y_prob)
+        mcc  = matthews_corrcoef(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        sens = recall_score(y_test, y_pred, zero_division=0)
+        f1   = f1_score(y_test, y_pred, zero_division=0)
+        tn, fp, *_ = confusion_matrix(y_test, y_pred).ravel()
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0
 
-        return {"auc": auc, "threshold": 0.5}
+        if verbose:
+            print("\n[최종 성능 평가 - OOF Stacking v0.5]")
+            print("=" * 70)
+            self._print_metrics("Stacking(ExtraTrees)", y_test, y_pred, y_prob)
+            print("=" * 70)
+
+        return {
+            "auc": auc, "threshold": 0.5,
+            "acc": acc, "mcc": mcc, "f1": f1, "prec": prec, "sens": sens, "spec": spec,
+        }
