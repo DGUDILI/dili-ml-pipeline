@@ -52,15 +52,6 @@ class StackingV1(BaseStacking):
               f"F1={f1:.4f}  Prec={prec:.4f}  Sens={rec:.4f}  Spec={spec:.4f}")
         return auc
 
-    @staticmethod
-    def _find_best_threshold(y_true, y_prob) -> float:
-        best_thresh, best_mcc = 0.5, -1.0
-        for thresh in np.arange(0.1, 0.91, 0.01):
-            mcc = matthews_corrcoef(y_true, (y_prob >= thresh).astype(int))
-            if mcc > best_mcc:
-                best_mcc, best_thresh = mcc, thresh
-        return best_thresh
-
     def fit(
         self,
         X_train: pd.DataFrame,
@@ -167,15 +158,11 @@ class StackingV1(BaseStacking):
 
         print("-" * 110)
         y_prob = meta_model.predict_proba(X_meta_test)[:, 1]
-        self._print_metrics("Stacking (Th=0.50)", y_test, (y_prob >= 0.5).astype(int), y_prob)
-
-        best_thresh = self._find_best_threshold(y_test, y_prob)
-        auc = self._print_metrics(
-            f"Stacking (Th={best_thresh:.2f})",
-            y_test, (y_prob >= best_thresh).astype(int), y_prob,
-        )
+        
+        # 임계값 0.5 고정 평가로 변경된 부분
+        auc = self._print_metrics("Stacking (Th=0.50)", y_test, (y_prob >= 0.5).astype(int), y_prob)
+        
         print("=" * 110)
-        print(f"\n최적 임계값: {best_thresh:.2f}")
         print(f"최종 AUC:    {auc:.4f}")
 
-        return {"auc": auc, "threshold": best_thresh}
+        return {"auc": auc, "threshold": 0.5}
