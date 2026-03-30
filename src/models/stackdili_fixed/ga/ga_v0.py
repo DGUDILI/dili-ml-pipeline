@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -8,7 +9,7 @@ from models.stackdili_fixed.ga.base import BaseGA
 
 
 class GAv0(BaseGA):
-    """원본 StackDILI GA — DEAP 기반 유전 알고리즘 피처 선택 (v0).
+    """원본 StackDILI GA - DEAP 기반 유전 알고리즘 피처 선택 (v0).
 
     출처: https://github.com/GGCL7/StackDILI
     변경 없이 원본 로직 그대로 유지.
@@ -29,6 +30,7 @@ class GAv0(BaseGA):
         self.random_seed   = random_seed
 
     def select_features(self, X: pd.DataFrame, y: pd.Series) -> list:
+        random.seed(self.random_seed)
         np.random.seed(self.random_seed)
         X_vals = X.values
         y_vals = y.values

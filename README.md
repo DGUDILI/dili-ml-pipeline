@@ -32,39 +32,40 @@ dili_ml_pipeline/
 ├── docker/
 │   └── environment.yml             # conda 환경 정의
 │
-├── data/
-│   └── Dataset.csv                 # 원본 데이터
-│
 ├── src/
-│   ├── train.py                    # 학습 진입점
+│   ├── train.py                    # StackDILI 학습 진입점
+│   ├── train_dgudili.py            # DGUDILI 학습 진입점
 │   ├── registry.py                 # GA / Stacking 버전 등록
 │   ├── env_test.py                 # 환경 확인용
 │   │
 │   ├── features/
-│   │   ├── Feature.py              # 피처 추출 (iFeatureOmegaCLI)
-│   │   └── Feature.csv             # 추출된 피처 (Feature.py 결과물)
+│   │   ├── Feature.py              # SMILES → dataset_features.csv (425 FP)
+│   │   ├── dataset_features.csv    # 전체 FP 피처 (425개, 덮어쓰기 금지)
+│   │   └── chemberta_encoder.py    # SMILES → 768-dim CLS 임베딩 (캐싱)
 │   │
 │   ├── preprocessing/
 │   │   └── make_clean_data.py      # Train-Test 중복 제거
 │   │
 │   └── models/
 │       └── stackdili_fixed/
-│           ├── model.py            # 조립기: GA → 정제 → Stacking 순서 관리
+│           ├── model.py            # 조립기: GA → Stacking 순서 관리
 │           │
 │           ├── ga/
 │           │   ├── base.py         # GA 인터페이스 (BaseGA)
-│           │   └── ga_v1.py        # GA 구현 v1 (DEAP 기반)
+│           │   ├── ga_v0.py        # GA 구현 v0 (원본 StackDILI, DEAP 기반)
+│           │   └── shap_interpreter.py  # 학습 후 XGBoost SHAP 해석
 │           │
 │           ├── stacking/
 │           │   ├── base.py         # Stacking 인터페이스 (BaseStacking)
-│           │   └── stacking_v1.py  # Stacking 구현 v1 (OOF + LR 메타)
+│           │   ├── stacking_v0.py  # 원본 StackDILI (직접 예측 + ExtraTrees 메타)
+│           │   ├── stacking_v0_5.py
+│           │   └── stacking_v1.py  # OOF + LR 메타 + MCC 임계값 최적화
 │           │
-│           ├── base_models/
-│           │   └── ML_model.py     # 단독 베이스 모델 실험용 (파이프라인 외)
+│           ├── cross_attention/
+│           │   └── cross_attention.py   # DGUDILIModel (Mode B Cross-Attention)
 │           │
-│           └── Model/              # 학습된 모델 저장 (자동 생성, git 제외)
-│
-└── outputs/
-    ├── docs/
-    └── models/
+│           ├── dgudili/
+│           │   └── dgudili_pipeline.py  # DGUDILI 파이프라인 오케스트레이터
+│           │
+│           └── Model/              # 학습된 모델 저장 (자동 생성)
 ```

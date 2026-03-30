@@ -4,8 +4,8 @@ from rdkit import Chem
 
 # 경로 설정
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ORIGINAL_DATA_PATH = os.path.join(SCRIPT_DIR, "../features/Feature.csv")
-CLEANED_DATA_PATH = os.path.join(SCRIPT_DIR, "../features/Feature_cleaned.csv")
+ORIGINAL_DATA_PATH = os.path.join(SCRIPT_DIR, "../features/dataset_features.csv")
+CLEANED_DATA_PATH = os.path.join(SCRIPT_DIR, "../features/dataset_features_cleaned.csv")
 
 print("[ 🧹 중복 데이터(치팅) 청소 작업 시작 ]")
 print("-" * 60)

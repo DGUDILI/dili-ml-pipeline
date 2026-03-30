@@ -18,7 +18,7 @@ from models.stackdili_fixed.stacking.base import BaseStacking
 
 
 class StackingV0(BaseStacking):
-    """원본 StackDILI 스태킹 — 직접 예측 기반 + ExtraTrees 메타 모델 (v0).
+    """원본 StackDILI 스태킹 - 직접 예측 기반 + ExtraTrees 메타 모델 (v0).
 
     출처: https://github.com/GGCL7/StackDILI
     변경 없이 원본 로직 그대로 유지.
@@ -107,7 +107,7 @@ class StackingV0(BaseStacking):
         X_meta_train = np.column_stack(prob_train_list)
         X_meta_test  = np.column_stack(prob_test_list)
 
-        # 2. 메타 모델 학습 — ExtraTreesClassifier (10회 반복)
+        # 2. 메타 모델 학습 - ExtraTreesClassifier (10회 반복)
         print(f"\n[2/2] 메타 모델 학습 (ExtraTrees, {self.STACKING_META_ITERS}회 반복)")
         best_stacking_auc   = -np.inf
         best_stacking_model = None

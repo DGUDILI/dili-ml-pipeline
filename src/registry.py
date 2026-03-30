@@ -30,8 +30,8 @@ GA_REGISTRY = {
 }
 
 ENV_REGISTRY = {
-    "env1": "외부 검증 — NCTR/Greene/Xu/Liew 학습, DILIrank 테스트",
-    "env2": "10-Fold CV — 전체 데이터셋 합쳐서 10겹 교차 검증",
+    "env1": "외부 검증 - NCTR/Greene/Xu/Liew 학습, DILIrank 테스트",
+    "env2": "10-Fold CV - 전체 데이터셋 합쳐서 10겹 교차 검증",
 }
 
 STACKING_REGISTRY = {

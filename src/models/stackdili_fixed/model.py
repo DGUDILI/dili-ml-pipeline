@@ -1,7 +1,6 @@
 import io
 import contextlib
 import os
-import shutil
 import subprocess
 import numpy as np
 import pandas as pd
@@ -33,28 +32,6 @@ class Model:
         self.ga_version       = ga_version
         self.env              = env  # None 또는 "env1" → 외부검증, "env2" → 10-Fold CV
 
-    def _restore_features(self, features_path: str) -> None:
-        """Feature_raw*.csv → Feature.csv 복원."""
-        features_dir = os.path.dirname(features_path)
-        custom = getattr(self.ga, "feature_raw_csv", None)
-        if custom:
-            raw_path = os.path.join(features_dir, custom)
-            if not os.path.exists(raw_path):
-                raise FileNotFoundError(
-                    f"[오류] GA 전용 피처 파일이 없습니다: {raw_path}\n"
-                    f"  먼저 './run.sh add-features' 를 실행하세요."
-                )
-            shutil.copy2(raw_path, features_path)
-            print(f"[원본 복원] {custom} → Feature.csv")
-        else:
-            raw_path = os.path.join(features_dir, "Feature_raw.csv")
-            if os.path.exists(raw_path):
-                shutil.copy2(raw_path, features_path)
-                print("[원본 복원] Feature_raw.csv → Feature.csv")
-            elif os.path.exists(features_path):
-                shutil.copy2(features_path, raw_path)
-                print("[최초 백업] Feature.csv → Feature_raw.csv (이후 실행부터 자동 복원)")
-
     def _build_save_dir(self, clean: bool) -> str:
         dir_name = f"stacking_{self.stacking_version}"
         if self.ga_version:
@@ -68,46 +45,39 @@ class Model:
         )
 
     def run(self, clean: bool = False):
-        features_path = os.path.join(self.project_root, "src", "features", "Feature.csv")
-
-        # 매 실행 시 원본 자동 복원
-        self._restore_features(features_path)
-
-        # 데이터 정제 (Train-Test 중복 제거, 선택 사항)
         if clean:
             print("[전처리] 데이터 정제")
             clean_script = os.path.join(self.project_root, "src", "preprocessing", "make_clean_data.py")
             subprocess.run(["python", clean_script], check=True, text=True)
-            cleaned_csv = os.path.join(self.project_root, "src", "features", "Feature_cleaned.csv")
-            shutil.copy2(cleaned_csv, features_path)
+            features_path = os.path.join(self.project_root, "src", "features", "dataset_features_cleaned.csv")
+        else:
+            features_path = os.path.join(self.project_root, "src", "features", "dataset_features.csv")
 
         if self.env == "env2":
             self._run_env2(features_path, clean)
         else:
-            # env1 (기본값): 외부 검증 — NCTR/Greene/Xu/Liew 학습, DILIrank 테스트
+            # env1 (기본값): 외부 검증 - NCTR/Greene/Xu/Liew 학습, DILIrank 테스트
             self._run_env1(features_path, clean)
 
     # ------------------------------------------------------------------
     # env1: 외부 검증
     # ------------------------------------------------------------------
     def _run_env1(self, features_path: str, clean: bool):
-        print("[env1] 외부 검증 모드 — NCTR/Greene/Xu/Liew 학습, DILIrank 테스트")
+        print("[env1] 외부 검증 모드 - NCTR/Greene/Xu/Liew 학습, DILIrank 테스트")
 
-        # GA 피처 선택 (학습 데이터에서만)
+        raw = pd.read_csv(features_path)
+
+        # GA 피처 선택 (학습 데이터에서만, in-memory)
         if self.ga is not None:
             print("[GA] 피처 선택 중...")
-            raw = pd.read_csv(features_path)
             train_raw   = raw[raw['ref'] != 'DILIrank']
             X_train_raw = train_raw.drop(['SMILES', 'Label', 'ref'], axis=1)
             y_train_raw = train_raw['Label']
             selected_cols = self.ga.select_features(X_train_raw, y_train_raw)
-            if not all(c in raw.columns for c in selected_cols):
-                raw = pd.read_csv(features_path)
-            raw[['SMILES', 'Label', 'ref'] + selected_cols].to_csv(features_path, index=False)
+            raw = raw[['SMILES', 'Label', 'ref'] + selected_cols]
 
-        cleaned = pd.read_csv(features_path)
-        train = cleaned[cleaned['ref'] != 'DILIrank']
-        test  = cleaned[cleaned['ref'] == 'DILIrank']
+        train = raw[raw['ref'] != 'DILIrank']
+        test  = raw[raw['ref'] == 'DILIrank']
 
         X_train = train.drop(['SMILES', 'Label', 'ref'], axis=1)
         y_train = train['Label'].values
@@ -126,11 +96,11 @@ class Model:
     # env2: 10-Fold CV (전체 데이터셋 합산)
     # ------------------------------------------------------------------
     def _run_env2(self, features_path: str, clean: bool):
-        print("[env2] 10-Fold CV 모드 — 전체 데이터셋 합산")
+        print("[env2] 10-Fold CV 모드 - 전체 데이터셋 합산")
 
-        data = pd.read_csv(features_path)
-        X    = data.drop(['SMILES', 'Label', 'ref'], axis=1)
-        y    = data['Label'].values
+        raw  = pd.read_csv(features_path)
+        X    = raw.drop(['SMILES', 'Label', 'ref'], axis=1)
+        y    = raw['Label'].values
 
         # GA 피처 선택 (전체 데이터 기준, CV 루프 밖에서 1회 수행)
         if self.ga is not None:

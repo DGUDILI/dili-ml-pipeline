@@ -41,6 +41,12 @@ case "$CMD" in
       conda run -n dili_ml_pipeline_env \
       python src/train.py --stacking="$STACKING" $GA_ARG $ENV_ARG $CLEAN_ARG
     ;;
+  dgudili)
+    # DGUDILI pipeline
+    docker compose run --rm ml \
+      conda run -n dili_ml_pipeline_env \
+      python src/train_dgudili.py "${@:2}"
+    ;;
   env-test)
     docker compose run --rm ml \
       conda run -n dili_ml_pipeline_env \
@@ -52,7 +58,14 @@ case "$CMD" in
       python src/features/add_rdkit_features.py
     ;;
   *)
-    echo "Usage: ./run.sh {build|shell|run [...options]|env-test|add-features}"
+    echo "Usage: ./run.sh {build|shell|run [...options]|dgudili [...options]|env-test|add-features}"
+    echo ""
+    echo "  [DGUDILI]"
+    echo "  ./run.sh dgudili --env env1          # env1 external validation"
+    echo "  ./run.sh dgudili --env env2          # 10-Fold CV"
+    echo "  ./run.sh dgudili --env env1 --shap   # with SHAP interpretation"
+    echo ""
+    echo "  [StackDILI]"
     echo "  stacking: s0 | s0.5 | s1          (기본값: s1, 접두사 s)"
     echo "  ga:       g0                       (생략 가능, 접두사 g)"
     echo "  env:      env1 | env2              (생략 시 env1과 동일, 접두사 env)"

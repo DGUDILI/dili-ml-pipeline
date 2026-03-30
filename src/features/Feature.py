@@ -5,10 +5,12 @@ import iFeatureOmegaCLI
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 input_csv = os.path.join(SCRIPT_DIR, "../../data/Dataset.csv")
 temp_smiles_file = os.path.join(SCRIPT_DIR, "Dataset.txt")
-output_csv = os.path.join(SCRIPT_DIR, "Feature.csv")
+output_csv = os.path.join(SCRIPT_DIR, "dataset_features.csv")
 
 df = pd.read_csv(input_csv)
 
+with open(temp_smiles_file, "w") as f:
+    f.write("\n".join(df["SMILES"].tolist()))
 
 ligand = iFeatureOmegaCLI.iLigand(temp_smiles_file)
 

@@ -5,10 +5,11 @@
 ## 목차
 
 1. [환경 세팅 (Docker)](#환경-세팅)
-2. [실행 방법](#실행-방법)
-3. [현재 버전 목록](#현재-버전-목록)
-4. [파이프라인 흐름](#파이프라인-흐름)
-5. [새 버전 추가하기](#새-버전-추가하기)
+2. [StackDILI 실행](#stackdili-실행)
+3. [DGUDILI 실행](#dgudili-실행)
+4. [현재 버전 목록](#현재-버전-목록)
+5. [파이프라인 흐름](#파이프라인-흐름)
+6. [새 버전 추가하기](#새-버전-추가하기)
 
 ---
 
@@ -41,7 +42,7 @@ bash run.sh build
 
 ---
 
-## 실행 방법
+## StackDILI 실행
 
 ```bash
 ./run.sh run [s버전] [g버전] [env버전] [clean]
@@ -74,7 +75,7 @@ bash run.sh build
 ./run.sh run s1 g0 env2 clean       # + 데이터 정제
 ```
 
-> - GA를 생략하면 `Feature.csv`의 전체 피처로 바로 Stacking을 실행합니다.
+> - GA를 생략하면 `dataset_features.csv`의 전체 피처(425개)로 바로 Stacking을 실행합니다.
 > - `env2`는 10개 fold를 순차 실행하므로 env1보다 시간이 약 10배 걸립니다.
 > - 데이터 정제(`clean`)는 Train-Test 중복 제거가 필요한 경우에만 사용하세요.
 
@@ -106,6 +107,71 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking s1 --ga g0 --en
 
 ---
 
+## DGUDILI 실행
+
+DGUDILI는 FP(425개) + ChemBERTa(768-dim) 이중 입력을 Cross-Attention으로 결합해
+16-dim 피처로 압축한 뒤 Logistic Regression으로 분류하는 모델입니다.
+
+```bash
+./run.sh dgudili [옵션]
+```
+
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `--env` | 실험 환경 (`env1` 또는 `env2`) | `env1` |
+| `--epochs` | 학습 에포크 수 | `80` |
+| `--batch_size` | 배치 크기 | `32` |
+| `--d_model` | Cross-Attention 임베딩 차원 | `64` |
+| `--n_heads` | Multi-head Attention 헤드 수 | `4` |
+| `--lr` | 학습률 | `1e-3` |
+| `--seed` | 랜덤 시드 | `42` |
+| `--clean` | Train-Test 중복 제거 후 실행 | 생략 |
+| `--shap` | 학습 후 SHAP 피처 중요도 분석 (env1 전용) | 생략 |
+
+### 예시
+
+```bash
+./run.sh dgudili                         # env1 외부 검증 (기본값)
+./run.sh dgudili --env env1              # env1 외부 검증 (명시)
+./run.sh dgudili --env env2              # env2 10-Fold CV
+./run.sh dgudili --env env1 --shap       # env1 + SHAP 피처 중요도 분석
+./run.sh dgudili --env env1 --clean      # 데이터 정제 후 env1 실행
+./run.sh dgudili --env env1 --epochs 100 --d_model 128  # 하이퍼파라미터 변경
+```
+
+### 사전 준비
+
+DGUDILI 첫 실행 전 ChemBERTa 임베딩을 미리 추출해 두어야 합니다.
+(GPU 없이 수 분 소요 — 이후 `.npy` 파일로 캐싱되어 재실행 불필요)
+
+```bash
+./run.sh shell
+
+# 컨테이너 안에서
+conda run -n dili_ml_pipeline_env python src/features/chemberta_encoder.py
+```
+
+### 결과 저장 위치
+
+```
+src/models/stackdili_fixed/Model/
+├── dgudili_modeB_env1/               # ./run.sh dgudili --env env1
+│   ├── dgudili_model.pt              # Cross-Attention 모델 가중치
+│   ├── lr_classifier.pkl             # Logistic Regression 분류기
+│   ├── scaler.pkl                    # StandardScaler
+│   ├── config.pkl                    # 모델 설정
+│   ├── result.txt                    # AUC 결과
+│   └── shap/                         # --shap 옵션 사용 시
+│       ├── shap_bar.png
+│       └── shap_importance.csv
+└── dgudili_modeB_env2/               # ./run.sh dgudili --env env2
+    ├── fold_01/
+    ├── fold_02/
+    └── ...fold_10/
+```
+
+---
+
 ## 현재 버전 목록
 
 ### GA
@@ -121,6 +187,7 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking s1 --ga g0 --en
 | `s0` | `stacking/stacking_v0.py` | 원본 StackDILI — 직접 예측 기반, ExtraTrees 메타 모델 |
 | `s0.5` | `stacking/stacking_v0_5.py` | OOF 기반, LR/SVC(스케일) + ExtraTrees 메타 모델 |
 | `s1` | `stacking/stacking_v1.py` | OOF 기반, LogisticRegression 메타 모델 + 피처 힌트 + MCC 임계값 최적화 |
+
 **Stacking 버전 비교:**
 
 | | `s0` | `s0.5` | `s1` |
@@ -134,19 +201,17 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking s1 --ga g0 --en
 
 ## 파이프라인 흐름
 
+### StackDILI
+
 ```
-[전처리팀] Feature.py
-     ↓ src/features/Feature.csv 생성
-     ↓
-[자동] Feature_raw.csv 백업
-     ↓ 최초 실행 시 Feature.csv → Feature_raw.csv 자동 백업
-     ↓ 이후 매 실행 전 Feature_raw.csv → Feature.csv 자동 복원
+[전처리] Feature.py (iFeatureOmegaCLI)
+     ↓ src/features/dataset_features.csv 생성 (425개 FP, 덮어쓰기 금지)
      ↓
 [데이터 정제, 선택] make_clean_data.py  ← --clean 옵션 지정 시 실행
-     ↓ Train-Test 중복 제거
+     ↓ Train-Test 중복 제거 → dataset_features_cleaned.csv
      ↓
 [GA, 선택] ga_vN.py → select_features()  ← --ga 옵션 지정 시 실행
-     ↓ 선택된 피처로 Feature.csv 덮어쓰기
+     ↓ in-memory 피처 선택 (원본 파일 변경 없음)
      ↓
 [스태킹] stacking_vN.py → fit() → evaluate()
      ↓ src/models/stackdili_fixed/Model/stacking_{sv}_ga_{gv}/ 에 pkl 저장
@@ -154,11 +219,30 @@ conda run -n dili_ml_pipeline_env python src/train.py --stacking s1 --ga g0 --en
 결과 출력 (OOF AUC / Eval AUC)
 ```
 
-### Feature.csv 보호 방식
+### DGUDILI
 
-- **최초 실행 시**: `Feature.csv`를 `Feature_raw.csv`로 자동 백업합니다.
-- **이후 매 실행 전**: `Feature_raw.csv` → `Feature.csv`로 자동 복원합니다.
-- GA가 `Feature.csv`를 덮어써도 다음 실행 전 원본으로 되돌아갑니다.
+```
+[전처리] Feature.py (iFeatureOmegaCLI)
+     ↓ src/features/dataset_features.csv (425개 FP)
+     ↓
+[임베딩] chemberta_encoder.py
+     ↓ src/features/chemberta_embeddings.npy (768-dim, 캐싱)
+     ↓
+[모델 학습] DGUDILIModel (Cross-Attention Mode B)
+     ↓ FP 4그룹 Linear Projection + ChemBERTa Projection
+     ↓ Q=ChemBERTa(1 token), K=V=FP(4 tokens) → 16-dim 피처
+     ↓
+[분류기] LogisticRegression (k=16 피처 입력)
+     ↓ src/models/stackdili_fixed/Model/dgudili_modeB_{env}/ 에 저장
+     ↓
+결과 출력 (AUC / MCC / Sens / Spec)
+```
+
+### 데이터 파일 원칙
+
+- `dataset_features.csv`: Feature.py 원본 출력 (425 FP). **절대 덮어쓰지 않음.**
+- GA 피처 선택은 in-memory로만 처리 — 원본 파일 유지.
+- `--clean` 사용 시에만 `dataset_features_cleaned.csv`가 별도 생성됨.
 
 ---
 
@@ -229,20 +313,23 @@ class StackingV2(BaseStacking):
 **2. registry.py에 등록** `src/registry.py`
 
 ```python
-from models.stackdili_fixed.stacking.stacking_v1 import StackingV1
-from models.stackdili_fixed.stacking.stacking_v2 import StackingV2  # 추가
-
 STACKING_REGISTRY = {
-    "v0": StackingV0,
-    "v1": StackingV1,
-    "v2": StackingV2,  # 추가
+    "s0":  None,
+    "s0.5": None,
+    "s1":  None,
+    "s2":  None,  # 추가
 }
+
+# _load_stacking() 함수에도 분기 추가:
+if version == "s2":
+    from models.stackdili_fixed.stacking.stacking_v2 import StackingV2
+    return StackingV2
 ```
 
 **3. 실행**
 
 ```bash
-./run.sh run v2
+./run.sh run s2
 ```
 
 ---
